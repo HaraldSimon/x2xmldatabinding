@@ -1994,6 +1994,7 @@ end;
 constructor TXMLDataBindingEnumeration.Create(AOwner: TXMLDataBindingGenerator; ASchemaItem: IXMLSchemaItem; AEnumerations: IXMLEnumerationCollection; const AName: String);
 var
   memberIndex:  Integer;
+  valueLookup : TList<Variant>;
 
 begin
   inherited Create(AOwner, ASchemaItem, AName);
@@ -2002,8 +2003,18 @@ begin
 
   if Assigned(AEnumerations) then
   begin
+    valueLookup:=TList<Variant>.Create;
+
     for memberIndex := 0 to Pred(AEnumerations.Count) do
-      FMembers.Add(TXMLDataBindingEnumerationMember.Create(Owner, Self, AEnumerations.Items[memberIndex].Value));
+    begin
+      if not valueLookup.Contains(AEnumerations.Items[memberIndex].Value) then  // 30.12.2024 Harald Simon: Prevent same value multiple times like in ZUGPFeD Schema CII D22B XSD
+      begin
+        valueLookup.Add(AEnumerations.Items[memberIndex].Value);
+        FMembers.Add(TXMLDataBindingEnumerationMember.Create(Owner, Self, AEnumerations.Items[memberIndex].Value));
+      end;
+    end;
+
+    FreeAndNil(valueLookup);
   end;
 end;
 
