@@ -1261,6 +1261,13 @@ var
   itemIndex:      Integer;
   item:           TXMLDataBindingItem;
   interfaceItem:  TXMLDataBindingInterface;
+  complexType:    IXMLComplexTypeDef;
+  node:           IXMLNode;
+  nodeList:       IXMLNodeList;
+  base:           String;
+  ns:             String;
+  iPos:           Integer;
+  schemaIndex:    Integer;
 
 begin
   for itemIndex := Pred(ASchema.ItemCount) downto 0 do
@@ -1273,9 +1280,63 @@ begin
           { Resolve base interface }
           interfaceItem := TXMLDataBindingInterface(item);
 
-          if (not Assigned(interfaceItem.BaseItem)) and
-             (Length(interfaceItem.BaseName) > 0) then
-            interfaceItem.BaseItem  := FindInterface(ASchema, interfaceItem.BaseName, ifComplexType);
+          if (not Assigned(interfaceItem.BaseItem)) then
+          begin
+            if (Length(interfaceItem.BaseName) > 0) then
+              interfaceItem.BaseItem  := FindInterface(ASchema, interfaceItem.BaseName, ifComplexType);
+
+            // // 31.12.2024 Harald Simon: try to resolve item by namespace / in other schema files
+
+            if (not Assigned(interfaceItem.BaseItem)) then
+            begin
+              if Supports(interfaceItem.SchemaItem, IXMLComplexTypeDef, complexType) then
+              begin
+                if complexType.DerivationMethod <> dmNone then
+                begin
+                  interfaceItem.BaseName := complexType.BaseTypeName;
+
+                  if (complexType.DerivationMethod in [dmSimpleExtension, dmSimpleRestriction]) then
+                  begin
+                    node:=complexType.ChildNodes.FindNode(SSimpleContent,complexType.GetNamespaceURI);
+                    if Assigned(node) then
+                    begin
+                      nodeList:=node.ChildNodes;
+                      if Assigned(nodeList) then
+                      begin
+                        if (complexType.DerivationMethod = dmSimpleExtension) then
+                          node:=nodeList.FindNode(SExtension, complexType.GetNamespaceURI)
+                        else
+                          node:=nodeList.FindNode(SRestriction, complexType.GetNamespaceURI);
+
+                        if Assigned(node) then
+                        begin
+                          base := node.GetAttribute(SBase);
+
+                          iPos:=Pos(':', base);
+                          if (iPos > 0) then
+                          begin
+                            ns:=node.FindNamespaceURI(base);
+
+                            Delete(base, 1,iPos);
+
+                            for schemaIndex := Pred(SchemaCount) downto 0 do
+                            begin
+                              if not SameText(Schemas[schemaIndex].TargetNamespace, ns) then
+                                continue;
+
+                              interfaceItem.BaseItem  := FindInterface(Schemas[schemaIndex], base, ifComplexType);
+                              if Assigned(interfaceItem.BaseItem) then
+                                break;
+                            end;
+                          end;
+                        end;
+                      end;
+                    end;
+                  end;
+                end;
+              end;
+            end;
+          end;
         end;
 
       itUnresolved:
