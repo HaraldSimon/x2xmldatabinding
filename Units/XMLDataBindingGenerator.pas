@@ -1591,6 +1591,7 @@ var
   propertyItem:         TXMLDataBindingProperty;
   repeatingItems:       TObjectList<TXMLDataBindingProperty>;
   typedSchemaItem:      IXMLTypedSchemaItem;
+  schemaIndex:          Integer;
 
 begin
   { Translate name }
@@ -1663,6 +1664,22 @@ begin
             // #ToDo1 (MvR) 30-7-2008: temporary implementation; have to check
             //                         for proper functioning later.
             collectionItem := FindInterface(ASchema, propertyItem.TranslatedName + CollectionPostfix, ifElement);
+
+            // 31.12.2024 Harald Simon: check collection interface in all schema files
+
+            if (not Assigned(collectionItem)) and (SchemaCount > 0) then
+            begin
+              for schemaIndex := Pred(SchemaCount) downto 0 do
+              begin
+                if (Schemas[schemaIndex] = ASchema) then
+                  continue;
+
+                collectionItem := FindInterface(Schemas[schemaIndex], propertyItem.TranslatedName + CollectionPostfix, ifElement);
+                if Assigned(collectionItem) then
+                  break;
+              end;
+            end;
+
             if not Assigned(collectionItem) then
             begin
               case propertyItem.PropertyType of
