@@ -841,10 +841,12 @@ begin
     begin
       if AElement.DataType.IsComplex then
       begin
-        { Find data type. If not found, mark as "resolve later". }
-        Result  := FindInterface(ASchema, AElement.DataTypeName, ifComplexType);
-
-        if not Assigned(Result) then
+        // 31.12.2024 Harald Simon: resolve items always later, because unsolved items at main level may be ignored if there is a definition in includes
+        //
+        //{ Find data type. If not found, mark as "resolve later". }
+        //  Result  := FindInterface(ASchema, AElement.DataTypeName, ifComplexType);
+        //
+        // if not Assigned(Result) then
         begin
           Result  := TXMLDataBindingUnresolvedItem.Create(Self, AElement, AElement.DataTypeName, ifComplexType, False);
           ASchema.AddItem(Result);
